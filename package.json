@@ -1,7 +1,7 @@
 {
   "name": "tunnel-server",
   "version": "1.0.0",
-  "description": "Simple HTTP tunnel proxy + frontend add-on",
+  "description": "HTTP Tunnel Proxy + Frontend Add-on with Failover",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -15,7 +15,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["proxy", "tunnel", "addon", "frontend"],
+  "keywords": ["proxy", "tunnel", "addon", "frontend", "failover"],
   "author": "YourName",
   "license": "MIT"
 }

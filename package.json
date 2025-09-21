@@ -1,0 +1,21 @@
+{
+  "name": "tunnel-server",
+  "version": "1.0.0",
+  "description": "Simple HTTP tunnel proxy + frontend add-on",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.4.1",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["proxy", "tunnel", "addon", "frontend"],
+  "author": "YourName",
+  "license": "MIT"
+}

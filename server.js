@@ -1,10 +1,9 @@
 import express from "express";
-import fetch from "node-fetch";
 import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const PROXY_API_KEY = process.env.PROXY_API_KEY || "changeme"; // set in Render env
+const PROXY_API_KEY = process.env.PROXY_API_KEY || "changeme";
 
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
@@ -21,7 +20,7 @@ app.post("/proxy", async (req, res) => {
     const response = await fetch(url, {
       method: method || "GET",
       headers: headers || {},
-      body: body || undefined,
+      body: body || undefined
     });
 
     const text = await response.text();
@@ -57,8 +56,7 @@ app.get("/addon.js", (req, res) => {
             mode: "cors"
           });
           if (!res.ok) {
-            if (res.status >= 400 && res.status < 500) throw new Error(\`Proxy \${endpoint} rejected: \${res.status}\`);
-            lastError = new Error(\`Proxy \${endpoint} server error: \${res.status}\`);
+            lastError = new Error(\`Proxy \${endpoint} failed: \${res.status}\`);
             continue;
           }
           const ct = res.headers.get("content-type") || "";
@@ -82,7 +80,7 @@ app.get("/addon.js", (req, res) => {
         return r;
       }
     };
-    console.log("✅ myTunnel loaded with failover:", PROXIES);
+    console.log("✅ myTunnel loaded with failover proxies");
   })();`;
 
   res.type("application/javascript").send(addonScript);

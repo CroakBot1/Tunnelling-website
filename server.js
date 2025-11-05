@@ -8,6 +8,7 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
+// List of fallback bases
 const BASES = [
   "https://api.binance.com",
   "https://croak-express-gateway-henna.vercel.app",
@@ -16,24 +17,26 @@ const BASES = [
 ];
 
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,             // max 60 requests per IP
   message: { error: "Too many requests, slow down." }
 });
 
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
+// Helper: parse JSON safely
 async function safeJson(res) {
   const text = await res.text();
   try {
     return JSON.parse(text);
   } catch {
-    console.error("❌ Invalid JSON from:", text.slice(0, 200));
+    console.error("❌ Invalid JSON:", text.slice(0, 200));
     throw new Error("Invalid JSON response");
   }
 }
 
+// Fetch with timeout
 async function timedFetch(url, ms = 12000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
@@ -46,20 +49,18 @@ async function timedFetch(url, ms = 12000) {
 
 let currentBase = null;
 
-// Only select base that responds successfully to /ticker/price
+// Detect a working base (must successfully return /ticker/price)
 async function detectBase() {
   for (const base of BASES) {
     try {
-      console.log("⏳ Testing base:", base);
       const res = await timedFetch(`${base}/api/v3/ticker/price`, 8000);
       if (res.ok) {
         const data = await safeJson(res);
         if (Array.isArray(data)) {
-          console.log("✅ Base working:", base);
+          console.log("✅ Using base:", base);
           return base;
-        } else {
-          console.warn("⚠️ Base returned invalid format:", base);
         }
+        console.warn("⚠️ Base returned invalid format:", base);
       } else {
         console.warn("⚠️ Base response not OK:", base, res.status);
       }
@@ -71,12 +72,11 @@ async function detectBase() {
 }
 
 async function getBase() {
-  if (!currentBase) {
-    currentBase = await detectBase();
-  }
+  if (!currentBase) currentBase = await detectBase();
   return currentBase;
 }
 
+// Proxy request with fallback
 async function proxyRequest(path, ms = 12000) {
   let base = await getBase();
   let url = base + path;
@@ -86,7 +86,7 @@ async function proxyRequest(path, ms = 12000) {
     return await safeJson(res);
   } catch (err) {
     console.warn("⚠️ Base failed, rotating...", base, err.message);
-    currentBase = null; // reset and try another
+    currentBase = null;
     base = await getBase();
     url = base + path;
     const res = await timedFetch(url, ms);
@@ -116,7 +116,7 @@ app.get("/prices", async (req, res) => {
   }
 });
 
-// Root
+// Root endpoint
 app.get("/", (req, res) => {
   res.json({
     message: "API Proxy Server Running",
@@ -141,6 +141,7 @@ setInterval(async () => {
   }
 }, 240000);
 
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

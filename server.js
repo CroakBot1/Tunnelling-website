@@ -8,8 +8,8 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// Fallback bases for Binance API
-const BASES = [
+// Initial base list
+let BASES = [
   "https://api.binance.com",
   "https://croak-express-gateway-henna.vercel.app",
   "https://croak-bot-proxy-three.vercel.app",
@@ -18,7 +18,7 @@ const BASES = [
 
 // Limit requests per IP
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 60,
   message: { error: "Too many requests, slow down." }
 });
@@ -37,7 +37,7 @@ async function safeJson(res) {
 }
 
 // Timeout fetch
-async function timedFetch(url, ms = 8000) {
+async function timedFetch(url, ms = 10000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
   try {
@@ -47,48 +47,37 @@ async function timedFetch(url, ms = 8000) {
   }
 }
 
-let currentBase = null;
+// Keep track of working bases
+let workingBases = [...BASES];
 
-// Detect first working base
-async function detectBase() {
-  for (const base of BASES) {
+// Attempt to fetch from available bases
+async function proxyRequest(path, ms = 10000) {
+  if (!workingBases.length) {
+    console.warn("⚠️ All bases failed, retrying with full list...");
+    workingBases = [...BASES]; // Reset
+  }
+
+  for (let i = 0; i < workingBases.length; i++) {
+    const base = workingBases[i];
+    const url = base + path;
+
     try {
-      const res = await timedFetch(`${base}/api/v3/ping`, 5000);
-      if (res.ok) {
-        console.log("✅ Using base:", base);
-        return base;
-      }
+      const res = await timedFetch(url, ms);
+      const json = await safeJson(res);
+
+      // Move successful base to front (optional: keep it preferred)
+      workingBases.unshift(...workingBases.splice(i, 1));
+      return json;
     } catch (err) {
-      console.warn("❌ Base failed:", base, err.message);
+      console.warn(`❌ Base failed: ${base}`, err.message);
+      // Remove failed base from working list temporarily
+      workingBases.splice(i, 1);
+      i--; // Adjust index since we removed an element
+      continue;
     }
   }
-  throw new Error("No working base found.");
-}
 
-// Get current base or detect
-async function getBase() {
-  if (!currentBase) {
-    currentBase = await detectBase();
-  }
-  return currentBase;
-}
-
-// Proxy request with fallback
-async function proxyRequest(path, ms = 8000) {
-  let base = await getBase();
-  let url = base + path;
-
-  try {
-    const res = await timedFetch(url, ms);
-    return await safeJson(res);
-  } catch (err) {
-    console.warn("⚠️ Base failed, rotating...", err.message);
-    currentBase = null;
-    base = await getBase();
-    url = base + path;
-    const res = await timedFetch(url, ms);
-    return await safeJson(res);
-  }
+  throw new Error("No working base could fetch the request.");
 }
 
 // Routes
@@ -98,7 +87,7 @@ app.use("/api/v3/*", async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error("❌ Proxy error:", err.message);
-    res.status(500).json({ error: err.message || "Proxy failed" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -124,7 +113,7 @@ app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Self-ping every 4 minutes to keep server alive
+// Self-ping every 4 minutes
 const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
 setInterval(async () => {
   try {

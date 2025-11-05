@@ -29,12 +29,12 @@ async function safeJson(res) {
   try {
     return JSON.parse(text);
   } catch {
-    console.error("❌ Invalid JSON:", text.slice(0, 200));
+    console.error("❌ Invalid JSON from:", text.slice(0, 200));
     throw new Error("Invalid JSON response");
   }
 }
 
-async function timedFetch(url, ms = 8000) {
+async function timedFetch(url, ms = 12000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
   try {
@@ -46,13 +46,22 @@ async function timedFetch(url, ms = 8000) {
 
 let currentBase = null;
 
+// Only select base that responds successfully to /ticker/price
 async function detectBase() {
   for (const base of BASES) {
     try {
-      const res = await timedFetch(`${base}/api/v3/ping`, 5000);
+      console.log("⏳ Testing base:", base);
+      const res = await timedFetch(`${base}/api/v3/ticker/price`, 8000);
       if (res.ok) {
-        console.log("✅ Using base:", base);
-        return base;
+        const data = await safeJson(res);
+        if (Array.isArray(data)) {
+          console.log("✅ Base working:", base);
+          return base;
+        } else {
+          console.warn("⚠️ Base returned invalid format:", base);
+        }
+      } else {
+        console.warn("⚠️ Base response not OK:", base, res.status);
       }
     } catch (err) {
       console.warn("❌ Base failed:", base, err.message);
@@ -68,16 +77,16 @@ async function getBase() {
   return currentBase;
 }
 
-async function proxyRequest(path, ms = 8000) {
+async function proxyRequest(path, ms = 12000) {
   let base = await getBase();
   let url = base + path;
 
   try {
     const res = await timedFetch(url, ms);
     return await safeJson(res);
-  } catch {
-    console.warn("⚠️ Base failed, rotating...");
-    currentBase = null;
+  } catch (err) {
+    console.warn("⚠️ Base failed, rotating...", base, err.message);
+    currentBase = null; // reset and try another
     base = await getBase();
     url = base + path;
     const res = await timedFetch(url, ms);
@@ -85,6 +94,7 @@ async function proxyRequest(path, ms = 8000) {
   }
 }
 
+// Proxy all /api/v3/* requests
 app.use("/api/v3/*", async (req, res) => {
   try {
     const data = await proxyRequest(req.originalUrl);
@@ -95,6 +105,7 @@ app.use("/api/v3/*", async (req, res) => {
   }
 });
 
+// /prices endpoint
 app.get("/prices", async (req, res) => {
   try {
     const data = await proxyRequest("/api/v3/ticker/price");
@@ -105,6 +116,7 @@ app.get("/prices", async (req, res) => {
   }
 });
 
+// Root
 app.get("/", (req, res) => {
   res.json({
     message: "API Proxy Server Running",
@@ -114,6 +126,7 @@ app.get("/", (req, res) => {
   });
 });
 
+// Keep-alive ping
 app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });

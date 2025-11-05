@@ -9,10 +9,10 @@ const PORT = process.env.PORT || 3000;
 // ✅ Enable CORS for all routes
 app.use(cors());
 
-// Serve static files (HTML, JS, etc.)
+// ✅ Serve static files from 'public' folder
 app.use(express.static(path.join(__dirname, "public")));
 
-// Dynamic proxy for all /api/v3/* requests
+// ✅ Dynamic proxy for all /api/v3/* requests
 app.use(
   "/api/v3",
   createProxyMiddleware({

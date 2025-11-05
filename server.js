@@ -1,37 +1,25 @@
-const express = require("express");
-const { createProxyMiddleware } = require("http-proxy-middleware");
-const cors = require("cors");
-const path = require("path");
-
+const express = require('express');
+const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Enable CORS for all routes
-app.use(cors());
+app.use(express.json());
 
-// ✅ Serve static files from 'public' folder
-app.use(express.static(path.join(__dirname, "public")));
-
-// ✅ Dynamic proxy for all /api/v3/* requests with clean logging
-app.use(
-  "/api/v3",
-  createProxyMiddleware({
-    target: "https://api.binance.com",
-    changeOrigin: true,
-    logLevel: "debug",
-    pathRewrite: {
-      "^/api/v3": "/api/v3" // keep the same path
-    },
-    onProxyReq(proxyReq, req, res) {
-      console.log(`🔄 Proxying request: ${req.originalUrl}`);
-    },
-    onError(err, req, res) {
-      console.error(`❌ Proxy error: ${err.message}`);
-      res.status(500).send("Proxy error");
-    }
-  })
-);
-
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+// Proxy endpoint
+app.get('/v2/public/*', async (req, res) => {
+  try {
+    const apiUrl = `https://api.bybit.com${req.path.replace('/v2/public', '')}${req.url.includes('?') ? req.url.split('?')[1] : ''}`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
+// Serve paclagw.json
+app.get('/paclagw.json', (req, res) => {
+  res.sendFile(__dirname + '/paclagw.json');
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -37,7 +37,7 @@ async function safeJson(res) {
 }
 
 // Fetch with timeout
-async function timedFetch(url, ms = 12000) {
+async function timedFetch(url, ms = 20000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
   try {
@@ -49,35 +49,50 @@ async function timedFetch(url, ms = 12000) {
 
 let currentBase = null;
 
-// Detect a working base (must successfully return /ticker/price)
+// Resilient parallel detection of working base
 async function detectBase() {
-  for (const base of BASES) {
+  console.log("🔍 Detecting working base...");
+
+  const tests = await Promise.all(BASES.map(async (base) => {
     try {
-      const res = await timedFetch(`${base}/api/v3/ticker/price`, 8000);
-      if (res.ok) {
-        const data = await safeJson(res);
-        if (Array.isArray(data)) {
-          console.log("✅ Using base:", base);
-          return base;
-        }
-        console.warn("⚠️ Base returned invalid format:", base);
-      } else {
-        console.warn("⚠️ Base response not OK:", base, res.status);
+      console.log("Testing base:", base);
+      const res = await timedFetch(`${base}/api/v3/ticker/price`, 20000);
+      if (!res.ok) {
+        console.warn(`⚠️ Base ${base} returned status ${res.status}`);
+        return null;
       }
+      const data = await safeJson(res);
+      if (!Array.isArray(data)) {
+        console.warn(`⚠️ Base ${base} returned invalid JSON format`);
+        return null;
+      }
+      console.log(`✅ Base working: ${base}`);
+      return base;
     } catch (err) {
-      console.warn("❌ Base failed:", base, err.message);
+      console.warn(`❌ Base ${base} failed:`, err.message);
+      return null;
     }
+  }));
+
+  const workingBase = tests.find(Boolean);
+
+  if (!workingBase) {
+    console.error("❌ No working base found. All attempts failed.");
+    throw new Error("No working proxy base");
   }
-  throw new Error("No working base found.");
+
+  console.log("✅ Using base:", workingBase);
+  return workingBase;
 }
 
+// Get current base, detect if not set
 async function getBase() {
   if (!currentBase) currentBase = await detectBase();
   return currentBase;
 }
 
-// Proxy request with fallback
-async function proxyRequest(path, ms = 12000) {
+// Proxy request with fallback rotation
+async function proxyRequest(path, ms = 20000) {
   let base = await getBase();
   let url = base + path;
 

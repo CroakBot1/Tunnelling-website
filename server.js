@@ -3,18 +3,20 @@ import fetch from "node-fetch";
 import cors from "cors";
 
 const app = express();
-app.use(cors());
+app.use(cors()); // ✅ Enable CORS
 
 const PORT = process.env.PORT || 3000;
 
-// Proxy Bybit public API requests
+// ✅ Proxy Bybit public API requests
 app.get("/v2/public/*", async (req, res) => {
   try {
     const endpoint = req.path.replace("/v2/public", "");
     const query = req.url.includes("?") ? req.url.split("?")[1] : "";
     const apiUrl = `https://api.bybit.com/v2/public${endpoint}${query ? "?" + query : ""}`;
-    
+
     const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error(`Bybit API error: ${response.statusText}`);
+
     const data = await response.json();
     res.json(data);
   } catch (err) {
@@ -23,4 +25,4 @@ app.get("/v2/public/*", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

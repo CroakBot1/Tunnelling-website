@@ -1,92 +1,133 @@
 import express from "express";
 import cors from "cors";
+import fetch from "node-fetch";
+import rateLimit from "express-rate-limit";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const PROXY_API_KEY = process.env.PROXY_API_KEY || "changeme";
-
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
 
-// Proxy endpoint
-app.post("/proxy", async (req, res) => {
+const PORT = process.env.PORT || 3000;
+
+const BASES = [
+  "https://api.binance.com",
+  "https://croak-express-gateway-henna.vercel.app",
+  "https://croak-bot-proxy-three.vercel.app",
+  "https://croak-pwa.vercel.app"
+];
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: "Too many requests, slow down." }
+});
+
+app.use("/api", apiLimiter);
+app.use("/prices", apiLimiter);
+
+async function safeJson(res) {
+  const text = await res.text();
   try {
-    const { url, method, headers, body } = req.body;
+    return JSON.parse(text);
+  } catch {
+    console.error("❌ Invalid JSON:", text.slice(0, 200));
+    throw new Error("Invalid JSON response");
+  }
+}
 
-    if (req.headers["x-proxy-key"] !== PROXY_API_KEY) {
-      return res.status(403).json({ error: "Invalid API key" });
+async function timedFetch(url, ms = 8000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+let currentBase = null;
+
+async function detectBase() {
+  for (const base of BASES) {
+    try {
+      const res = await timedFetch(`${base}/api/v3/ping`, 5000);
+      if (res.ok) {
+        console.log("✅ Using base:", base);
+        return base;
+      }
+    } catch (err) {
+      console.warn("❌ Base failed:", base, err.message);
     }
+  }
+  throw new Error("No working base found.");
+}
 
-    const response = await fetch(url, {
-      method: method || "GET",
-      headers: headers || {},
-      body: body || undefined
-    });
+async function getBase() {
+  if (!currentBase) {
+    currentBase = await detectBase();
+  }
+  return currentBase;
+}
 
-    const text = await response.text();
+async function proxyRequest(path, ms = 8000) {
+  let base = await getBase();
+  let url = base + path;
 
-    try { res.json(JSON.parse(text)); }
-    catch { res.send(text); }
+  try {
+    const res = await timedFetch(url, ms);
+    return await safeJson(res);
+  } catch {
+    console.warn("⚠️ Base failed, rotating...");
+    currentBase = null;
+    base = await getBase();
+    url = base + path;
+    const res = await timedFetch(url, ms);
+    return await safeJson(res);
+  }
+}
+
+app.use("/api/v3/*", async (req, res) => {
+  try {
+    const data = await proxyRequest(req.originalUrl);
+    res.json(data);
   } catch (err) {
-    console.error("Proxy error:", err);
-    res.status(500).json({ error: "Proxy failed" });
+    console.error("❌ Proxy error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Serve failover addon.js
-app.get("/addon.js", (req, res) => {
-  const addonScript = `(function () {
-    const PROXIES = [
-      "https://croak-bot-proxy-three.vercel.app/api/proxy",
-      "https://croak-express-gateway-henna.vercel.app/api/proxy",
-      "https://croak-pwa.vercel.app/api/proxy",
-      window.location.origin + "/proxy"
-    ];
-    const PUBLIC_KEY = "changeme";
-
-    async function tryProxies(payload) {
-      let lastError = null;
-      for (let i = 0; i < PROXIES.length; i++) {
-        const endpoint = PROXIES[i];
-        try {
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-proxy-key": PUBLIC_KEY },
-            body: JSON.stringify(payload),
-            mode: "cors"
-          });
-          if (!res.ok) {
-            lastError = new Error(\`Proxy \${endpoint} failed: \${res.status}\`);
-            continue;
-          }
-          const ct = res.headers.get("content-type") || "";
-          if (ct.includes("application/json")) return await res.json();
-          else return await res.text();
-        } catch (err) { lastError = err; continue; }
-      }
-      throw lastError || new Error("All proxies failed");
-    }
-
-    window.myTunnel = {
-      fetch: async function (url, opts = {}) {
-        const payload = { url, method: opts.method || "GET", headers: opts.headers || {}, body: opts.body ?? null };
-        return await tryProxies(payload);
-      },
-      fetchJson: async function (url, opts = {}) {
-        const r = await this.fetch(url, opts);
-        if (typeof r === "string") {
-          try { return JSON.parse(r); } catch { throw new Error("Response not JSON"); }
-        }
-        return r;
-      }
-    };
-    console.log("✅ myTunnel loaded with failover proxies");
-  })();`;
-
-  res.type("application/javascript").send(addonScript);
+app.get("/prices", async (req, res) => {
+  try {
+    const data = await proxyRequest("/api/v3/ticker/price");
+    res.json(data);
+  } catch (err) {
+    console.error("❌ /prices error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Health check
-app.get("/", (req, res) => res.send("✅ Tunnelling server running"));
+app.get("/", (req, res) => {
+  res.json({
+    message: "API Proxy Server Running",
+    keepalive: "/keep-alive",
+    endpoints: ["/prices", "/api/v3/..."],
+    limits: "60 requests/minute per IP"
+  });
+});
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.get("/keep-alive", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
+setInterval(async () => {
+  try {
+    const res = await fetch(`${SELF_URL}/keep-alive`);
+    console.log("🔄 Self-ping:", res.status);
+  } catch (err) {
+    console.error("❌ Self-ping failed:", err.message);
+  }
+}, 240000);
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

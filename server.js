@@ -8,6 +8,7 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
+// Fallback bases for Binance API
 const BASES = [
   "https://api.binance.com",
   "https://croak-express-gateway-henna.vercel.app",
@@ -15,15 +16,16 @@ const BASES = [
   "https://croak-pwa.vercel.app"
 ];
 
+// Limit requests per IP
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
+  windowMs: 60 * 1000, // 1 minute
   max: 60,
   message: { error: "Too many requests, slow down." }
 });
-
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
+// Helper to safely parse JSON
 async function safeJson(res) {
   const text = await res.text();
   try {
@@ -34,6 +36,7 @@ async function safeJson(res) {
   }
 }
 
+// Timeout fetch
 async function timedFetch(url, ms = 8000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
@@ -46,6 +49,7 @@ async function timedFetch(url, ms = 8000) {
 
 let currentBase = null;
 
+// Detect first working base
 async function detectBase() {
   for (const base of BASES) {
     try {
@@ -61,6 +65,7 @@ async function detectBase() {
   throw new Error("No working base found.");
 }
 
+// Get current base or detect
 async function getBase() {
   if (!currentBase) {
     currentBase = await detectBase();
@@ -68,6 +73,7 @@ async function getBase() {
   return currentBase;
 }
 
+// Proxy request with fallback
 async function proxyRequest(path, ms = 8000) {
   let base = await getBase();
   let url = base + path;
@@ -75,8 +81,8 @@ async function proxyRequest(path, ms = 8000) {
   try {
     const res = await timedFetch(url, ms);
     return await safeJson(res);
-  } catch {
-    console.warn("⚠️ Base failed, rotating...");
+  } catch (err) {
+    console.warn("⚠️ Base failed, rotating...", err.message);
     currentBase = null;
     base = await getBase();
     url = base + path;
@@ -85,13 +91,14 @@ async function proxyRequest(path, ms = 8000) {
   }
 }
 
+// Routes
 app.use("/api/v3/*", async (req, res) => {
   try {
     const data = await proxyRequest(req.originalUrl);
     res.json(data);
   } catch (err) {
     console.error("❌ Proxy error:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Proxy failed" });
   }
 });
 
@@ -108,7 +115,6 @@ app.get("/prices", async (req, res) => {
 app.get("/", (req, res) => {
   res.json({
     message: "API Proxy Server Running",
-    keepalive: "/keep-alive",
     endpoints: ["/prices", "/api/v3/..."],
     limits: "60 requests/minute per IP"
   });
@@ -118,6 +124,7 @@ app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Self-ping every 4 minutes to keep server alive
 const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
 setInterval(async () => {
   try {

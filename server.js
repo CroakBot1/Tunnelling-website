@@ -1,133 +1,51 @@
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
-import rateLimit from "express-rate-limit";
+import cors from "cors";
 
 const app = express();
-app.use(cors());
-
 const PORT = process.env.PORT || 3000;
+const SELF_PING_URL = "https://tunnelling-website.onrender.com"; // imong external URL
+const PING_INTERVAL_MINUTES = 25; // ping every 25 minutes
 
-const BASES = [
-  "https://api.binance.com",
-  "https://croak-express-gateway-henna.vercel.app",
-  "https://croak-bot-proxy-three.vercel.app",
-  "https://croak-pwa.vercel.app"
-];
+app.use(cors());
+app.use(express.json());
 
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  message: { error: "Too many requests, slow down." }
-});
-
-app.use("/api", apiLimiter);
-app.use("/prices", apiLimiter);
-
-async function safeJson(res) {
-  const text = await res.text();
+// Proxy route for Binance API
+app.all("/api/*", async (req, res) => {
   try {
-    return JSON.parse(text);
-  } catch {
-    console.error("❌ Invalid JSON:", text.slice(0, 200));
-    throw new Error("Invalid JSON response");
-  }
-}
+    const binanceUrl = `https://api.binance.com/${req.params[0]}`;
 
-async function timedFetch(url, ms = 8000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(id);
-  }
-}
+    const options = {
+      method: req.method,
+      headers: { ...req.headers },
+      body: ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body)
+    };
+    delete options.headers.host;
 
-let currentBase = null;
+    const response = await fetch(binanceUrl, options);
+    const data = await response.text();
 
-async function detectBase() {
-  for (const base of BASES) {
-    try {
-      const res = await timedFetch(`${base}/api/v3/ping`, 5000);
-      if (res.ok) {
-        console.log("✅ Using base:", base);
-        return base;
-      }
-    } catch (err) {
-      console.warn("❌ Base failed:", base, err.message);
-    }
-  }
-  throw new Error("No working base found.");
-}
-
-async function getBase() {
-  if (!currentBase) {
-    currentBase = await detectBase();
-  }
-  return currentBase;
-}
-
-async function proxyRequest(path, ms = 8000) {
-  let base = await getBase();
-  let url = base + path;
-
-  try {
-    const res = await timedFetch(url, ms);
-    return await safeJson(res);
-  } catch {
-    console.warn("⚠️ Base failed, rotating...");
-    currentBase = null;
-    base = await getBase();
-    url = base + path;
-    const res = await timedFetch(url, ms);
-    return await safeJson(res);
-  }
-}
-
-app.use("/api/v3/*", async (req, res) => {
-  try {
-    const data = await proxyRequest(req.originalUrl);
-    res.json(data);
+    res.status(response.status).send(data);
   } catch (err) {
-    console.error("❌ Proxy error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("Proxy error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-app.get("/prices", async (req, res) => {
-  try {
-    const data = await proxyRequest("/api/v3/ticker/price");
-    res.json(data);
-  } catch (err) {
-    console.error("❌ /prices error:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/", (req, res) => {
-  res.json({
-    message: "API Proxy Server Running",
-    keepalive: "/keep-alive",
-    endpoints: ["/prices", "/api/v3/..."],
-    limits: "60 requests/minute per IP"
-  });
-});
-
-app.get("/keep-alive", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
-setInterval(async () => {
-  try {
-    const res = await fetch(`${SELF_URL}/keep-alive`);
-    console.log("🔄 Self-ping:", res.status);
-  } catch (err) {
-    console.error("❌ Self-ping failed:", err.message);
-  }
-}, 240000);
-
+// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Binance proxy server running on port ${PORT}`);
 });
+
+// ===== Self-Ping Cron =====
+async function selfPing() {
+  try {
+    const res = await fetch(SELF_PING_URL);
+    console.log(`🔔 Self-ping successful at ${new Date().toLocaleString()} - Status: ${res.status}`);
+  } catch (err) {
+    console.error("❌ Self-ping failed:", err);
+  }
+}
+
+// Ping every 25 minutes to keep server awake
+setInterval(selfPing, PING_INTERVAL_MINUTES * 60 * 1000);

@@ -53,4 +53,30 @@ res.json({ username, isAdmin: user.isAdmin, rooms });
 
 // ===== Socket.IO =====
 io.on('connection', socket => {
+socket.on('join', ({ username, room }) => {
+sockets[socket.id] = username;
+socket.join(room);
+io.emit('online', Object.values(sockets));
+});
+
+
+socket.on('message', msg => {
+const user = sockets[socket.id];
+io.emit('message', { user, text: msg, time: new Date().toLocaleTimeString() });
+});
+
+
+socket.on('createRoom', room => {
+if (!rooms.includes(room)) rooms.push(room);
+io.emit('rooms', rooms);
+});
+
+
+socket.on('deleteRoom', room => {
+rooms = rooms.filter(r => r !== room);
+io.emit('rooms', rooms);
+});
+
+
+socket.on('disconnect', () => {
 server.listen(3000, () => console.log('Advanced Chat running'));

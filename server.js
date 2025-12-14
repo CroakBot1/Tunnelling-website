@@ -4,23 +4,27 @@ const bcrypt = require("bcrypt");
 const cors = require("cors");
 const { Server } = require("socket.io");
 
+
 const app = express();
 const server = http.createServer(app);
 
+
 const io = new Server(server, {
 cors: {
-origin: "[https://tunnelling-website.onrender.com](https://tunnelling-website.onrender.com)",
+origin: "https://tunnelling-website.onrender.com",
 methods: ["GET", "POST"],
 credentials: true
 }
 });
 
+
 app.use(cors({
-origin: "[https://tunnelling-website.onrender.com](https://tunnelling-website.onrender.com)",
+origin: "https://tunnelling-website.onrender.com",
 credentials: true
 }));
 app.use(express.json());
 app.use(express.static("public"));
+
 
 // ===== USERS DB =====
 const users = {
@@ -30,8 +34,10 @@ isAdmin: true
 }
 };
 
+
 let rooms = ["general"];
 let online = {};
+
 
 // ===== REGISTER =====
 app.post("/register", async (req, res) => {
@@ -41,6 +47,7 @@ if (users[username]) return res.status(409).json({ error: "User exists" });
 users[username] = { hash: await bcrypt.hash(password, 10), isAdmin: false };
 res.json({ success: true });
 });
+
 
 // ===== LOGIN =====
 app.post("/login", async (req, res) => {
@@ -52,27 +59,9 @@ if (!ok) return res.status(401).json({ error: "Invalid" });
 res.json({ success: true, username, isAdmin: user.isAdmin, rooms });
 });
 
+
 // ===== SOCKET =====
 io.on("connection", socket => {
 socket.on("join", ({ room, user }) => {
 online[socket.id] = user;
-socket.join(room);
-io.emit("online", Object.values(online));
-io.emit("rooms", rooms);
-});
-
-socket.on("message", msg => {
-io.to(msg.room).emit("message", { user: msg.user, text: msg.text, time: new Date().toLocaleTimeString() });
-});
-
-socket.on("disconnect", () => {
-delete online[socket.id];
-io.emit("online", Object.values(online));
-});
-});
-
-// ===== LISTEN =====
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, function() {
-console.log('LIVE on port ' + PORT);
 });

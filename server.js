@@ -1,65 +1,56 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import { exec } from 'child_process';
-import { v4 as uuidv4 } from 'uuid';
-import Database from 'better-sqlite3';
-import http from 'http';
-import { Server as IOServer } from 'socket.io';
-import fs from 'fs';
-import path from 'path';
-import dotenv from 'dotenv';
-
-
-dotenv.config();
-
-
-const WALLET = process.env.WALLET_ADDRESS;
-const POOL = process.env.POOL_URL || 'pool.supportxmr.com:3333';
-const POOL_PASS = process.env.POOL_PASS || 'rig01';
-const DEFAULT_THREADS = parseInt(process.env.DEFAULT_THREADS || '4', 10);
-const API_PORT = parseInt(process.env.API_PORT || '3000', 10);
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
 
 
 const app = express();
 const server = http.createServer(app);
-const io = new IOServer(server, { cors: { origin: '*' } });
-app.use(bodyParser.json());
+const io = new Server(server);
 
 
-const DATA_DIR = path.resolve('./data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-const dbFile = path.join(DATA_DIR, 'devices.db');
-const db = new Database(dbFile);
+app.use(express.json());
+app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
 
 
-db.prepare(`CREATE TABLE IF NOT EXISTS devices (
-id TEXT PRIMARY KEY,
-name TEXT,
-wallet TEXT,
-pool TEXT,
-threads INTEGER,
-status TEXT,
-container_name TEXT,
-created_at TEXT
-)`).run();
+// ===== In-memory DB (demo only) =====
+let users = {}; // username -> { passwordHash, isAdmin }
+let sockets = {}; // socket.id -> username
+let rooms = ['general'];
 
 
-const insertDevice = db.prepare('INSERT INTO devices (id,name,wallet,pool,threads,status,container_name,created_at) VALUES (@id,@name,@wallet,@pool,@threads,@status,@container_name,@created_at)');
-const getDevices = db.prepare('SELECT * FROM devices');
-const getDeviceById = db.prepare('SELECT * FROM devices WHERE id = ?');
-const updateDevice = db.prepare('UPDATE devices SET name=@name,wallet=@wallet,pool=@pool,threads=@threads,status=@status,container_name=@container_name WHERE id=@id');
-const deleteDevice = db.prepare('DELETE FROM devices WHERE id = ?');
+// ===== File Upload =====
+const upload = multer({ dest: 'uploads/' });
+app.post('/upload', upload.single('file'), (req, res) => {
+res.json({ file: `/uploads/${req.file.filename}` });
+});
 
 
-app.post('/devices', (req, res) => {
-const { name, wallet, pool, threads } = req.body;
-const id = uuidv4();
-const device = {
-id,
-name: name || `miner-${id.slice(0,6)}`,
-wallet: wallet || WALLET,
-pool: pool || POOL,
-threads: threads || DEFAULT_THREADS,
-status: 'stopped',
-container_name: null,
-created_at: new Date().toISOString()
+// ===== Auth =====
+app.post('/register', async (req, res) => {
+const { username, password } = req.body;
+if (users[username]) return res.status(400).send('User exists');
+users[username] = {
+passwordHash: await bcrypt.hash(password, 10),
+isAdmin: Object.keys(users).length === 0
+};
+res.send('Registered');
+});
+
+
+app.post('/login', async (req, res) => {
+const { username, password } = req.body;
+const user = users[username];
+if (!user) return res.status(401).send('Invalid');
+const ok = await bcrypt.compare(password, user.passwordHash);
+if (!ok) return res.status(401).send('Invalid');
+res.json({ username, isAdmin: user.isAdmin, rooms });
+});
+
+
+// ===== Socket.IO =====
+io.on('connection', socket => {
+server.listen(3000, () => console.log('Advanced Chat running'));

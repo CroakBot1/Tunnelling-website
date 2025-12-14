@@ -1,8 +1,8 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const bcrypt = require('bcrypt');
-const multer = require('multer');
+const express = require("express");
+const http = require("http");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
+const { Server } = require("socket.io");
 
 
 const app = express();
@@ -18,64 +18,57 @@ credentials: true
 });
 
 
+app.use(cors({
+origin: "https://tunnelling-website.onrender.com",
+credentials: true
+}));
 app.use(express.json());
-app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+app.use(express.static("public"));
 
 
-// ===== In-memory DB (demo) =====
-// PRESET ACCOUNT (AUTO-AVAILABLE SA LIVE SERVER)
+// ===== USERS DB =====
 const users = {
 familylove: {
-// password: balaba
-hash: require('bcrypt').hashSync('balaba', 10),
+hash: bcrypt.hashSync("balaba", 10),
 isAdmin: true
 }
 };
 
 
-const online = {}; // socket.id -> username
-let rooms = ['general'];
+let rooms = ["general"];
+let online = {};
 
 
-// ===== Upload =====
-const upload = multer({ dest: 'uploads/' });
-app.post('/upload', upload.single('file'), (req, res) => {
-res.json({ url: `/uploads/${req.file.filename}` });
-});
-
-
-// ===== Auth =====
-app.post('/register', async (req, res) => {
+// ===== REGISTER =====
+app.post("/register", async (req, res) => {
 const { username, password } = req.body;
-if (users[username]) return res.status(400).send('Exists');
+
+
+if (!username || !password)
+return res.status(400).json({ error: "Missing fields" });
+
+
+if (users[username])
+return res.status(409).json({ error: "User exists" });
+
+
 users[username] = {
 hash: await bcrypt.hash(password, 10),
-isAdmin: Object.keys(users).length === 0
+isAdmin: false
 };
-res.send('OK');
+
+
+res.json({ success: true });
 });
 
 
-app.post('/login', async (req, res) => {
+// ===== LOGIN =====
+app.post("/login", async (req, res) => {
 const { username, password } = req.body;
-const u = users[username];
-if (!u) return res.status(401).send('Invalid');
-const ok = await bcrypt.compare(password, u.hash);
-if (!ok) return res.status(401).send('Invalid');
-res.json({ username, isAdmin: u.isAdmin, rooms });
-});
+const user = users[username];
 
 
-// ===== Socket =====
-io.on('connection', socket => {
-socket.on('join', ({ username, room }) => {
-online[socket.id] = username;
-socket.join(room);
-io.emit('online', Object.values(online));
-});
+if (!user) return res.status(401).json({ error: "Invalid" });
 
 
-socket.on('message', data => {
-io.to(data.room).emit('message', {
-server.listen(3000, () => console.log('LIVE'));
+server.listen(3000, () => console.log("Server running"));

@@ -5,30 +5,42 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
 
 app.use(express.static("public"));
 
 let messages = [];
 
-// load old messages
+// Load saved messages
 if (fs.existsSync("messages.json")) {
-  messages = JSON.parse(fs.readFileSync("messages.json"));
+  messages = JSON.parse(fs.readFileSync("messages.json", "utf8"));
 }
 
 io.on("connection", (socket) => {
   console.log("User connected");
 
-  // send old messages
   socket.emit("loadMessages", messages);
 
   socket.on("chatMessage", (msg) => {
+    console.log("Received:", msg);
+
     messages.push(msg);
     fs.writeFileSync("messages.json", JSON.stringify(messages, null, 2));
+
     io.emit("chatMessage", msg);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
   });
 });
 
-server.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });

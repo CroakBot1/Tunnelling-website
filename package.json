@@ -1,5 +1,5 @@
 {
-  "name": "render-group-chat",
+  "name": "secure-group-chat",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -7,6 +7,9 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5"
   }
 }

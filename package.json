@@ -1,7 +1,6 @@
 {
-  "name": "simple-group-chat",
+  "name": "render-group-chat",
   "version": "1.0.0",
-  "description": "Simple website group chat with Node.js, Express, Socket.IO, and JSON storage",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

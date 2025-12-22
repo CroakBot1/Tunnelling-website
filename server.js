@@ -1,42 +1,52 @@
 const express = require("express");
 const http = require("http");
-const { Server } = require("socket.io");
-const fs = require("fs");
+const socketIo = require("socket.io");
+const bodyParser = require("body-parser");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: { origin: "*" }
+const io = socketIo(server, {
+  cors: { origin: "*" } // for testing
 });
 
-app.use(express.static("public"));
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static("public")); // serve html/js
 
-let messages = [];
+// In-memory user storage (replace with DB in production)
+const users = {}; // { username: hashedPassword }
+const messages = []; // chat messages
 
-// Load saved messages
-if (fs.existsSync("messages.json")) {
-  messages = JSON.parse(fs.readFileSync("messages.json", "utf8"));
-}
+// Register or verify user
+app.post("/verify", async (req, res) => {
+  const { user, pass } = req.body;
+  if(!user || !pass) return res.json({ success:false, msg:"Missing username or password" });
 
-io.on("connection", (socket) => {
-  console.log("User connected");
+  if(users[user]) {
+    // verify existing user
+    const match = await bcrypt.compare(pass, users[user]);
+    if(match) return res.json({ success:true });
+    else return res.json({ success:false, msg:"Incorrect password" });
+  } else {
+    // create new user
+    const hashed = await bcrypt.hash(pass, 10);
+    users[user] = hashed;
+    return res.json({ success:true });
+  }
+});
 
-  // send old messages
+// Socket.IO for chat
+io.on("connection", socket => {
+  // Send previous messages
   socket.emit("loadMessages", messages);
 
-  // receive new messages
   socket.on("chatMessage", (msg) => {
-    console.log("Received:", msg);
-    messages.push(msg);
-    fs.writeFileSync("messages.json", JSON.stringify(messages, null, 2));
-    io.emit("chatMessage", msg);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
+    messages.push(msg); // store
+    io.emit("chatMessage", msg); // broadcast
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log("Server running on port " + PORT));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

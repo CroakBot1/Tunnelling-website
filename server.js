@@ -1,6 +1,10 @@
-// server.js
+// ================================
+// Balaba Family Chat - Server
+// ================================
+
 const express = require("express");
 const http = require("http");
+const path = require("path");
 const socketIo = require("socket.io");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
@@ -10,100 +14,142 @@ const cron = require("node-cron");
 
 const app = express();
 const server = http.createServer(app);
+
+// ================================
+// SOCKET.IO CONFIG
+// ================================
 const io = socketIo(server, {
-  cors: { origin: "*" }
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
+// ================================
+// MIDDLEWARES
+// ================================
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static("public")); // serve your HTML/JS files
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// =====================================
-// 🔁 KEEP ALIVE / PING ENDPOINT
-// =====================================
+// ================================
+// STATIC FILES (PWA REQUIRED)
+// ================================
+app.use(express.static(path.join(__dirname, "public")));
+
+// ================================
+// HEALTH / PING (RENDER SAFE)
+// ================================
 app.get("/ping", (req, res) => {
   res.status(200).json({
     status: "ok",
-    message: "Server is alive 🚀",
     uptime: process.uptime(),
-    time: new Date().toISOString()
+    timestamp: new Date().toISOString()
   });
 });
 
-// =====================================
-// In-memory storage (demo only)
-// =====================================
-const users = {};       // { username: hashedPassword }
-const messages = [];    // chat messages
-const onlineUsers = {}; // { socketId: username }
+// ================================
+// IN-MEMORY STORAGE
+// ================================
+const users = {};          // { username: hashedPassword }
+const messages = [];       // chat messages
+const onlineUsers = {};    // { socketId: username }
 
-// =====================================
-// LOGIN / VERIFY USER
-// =====================================
+// ================================
+// LOGIN / REGISTER VERIFY
+// ================================
 app.post("/verify", async (req, res) => {
-  const { user, pass } = req.body;
-  if (!user || !pass) {
-    return res.json({ success: false, msg: "Missing username or password" });
-  }
+  try {
+    const { user, pass } = req.body;
+    if (!user || !pass) {
+      return res.json({ success: false, msg: "Missing credentials" });
+    }
 
-  if (users[user]) {
-    const match = await bcrypt.compare(pass, users[user]);
-    if (match) return res.json({ success: true });
-    else return res.json({ success: false, msg: "Incorrect password" });
-  } else {
-    const hashed = await bcrypt.hash(pass, 10);
-    users[user] = hashed;
+    // existing user
+    if (users[user]) {
+      const match = await bcrypt.compare(pass, users[user]);
+      if (!match) {
+        return res.json({ success: false, msg: "Wrong password" });
+      }
+      return res.json({ success: true });
+    }
+
+    // new user
+    const hash = await bcrypt.hash(pass, 10);
+    users[user] = hash;
     return res.json({ success: true });
+
+  } catch (err) {
+    console.error("VERIFY ERROR:", err);
+    res.json({ success: false, msg: "Server error" });
   }
 });
 
-// =====================================
-// SOCKET.IO CHAT + ONLINE USERS
-// =====================================
+// ================================
+// SOCKET.IO CHAT
+// ================================
 io.on("connection", socket => {
-  console.log("🟢 User connected:", socket.id);
+  console.log("🟢 Connected:", socket.id);
 
-  // Send previous messages
+  // send previous messages
   socket.emit("loadMessages", messages);
 
-  // Send current online users
+  // send online users
   socket.emit("onlineUsers", Object.values(onlineUsers));
 
-  // When user logs in
+  // login
   socket.on("login", username => {
+    if (!username) return;
     onlineUsers[socket.id] = username;
     io.emit("onlineUsers", Object.values(onlineUsers));
   });
 
-  // Chat message
+  // receive message
   socket.on("chatMessage", msg => {
+    if (!msg || !msg.text) return;
+
     messages.push(msg);
+
+    // limit memory (prevent crash)
+    if (messages.length > 300) {
+      messages.shift();
+    }
+
     io.emit("chatMessage", msg);
   });
 
-  // Disconnect
+  // disconnect
   socket.on("disconnect", () => {
-    console.log("🔴 User disconnected:", socket.id);
+    console.log("🔴 Disconnected:", socket.id);
     delete onlineUsers[socket.id];
     io.emit("onlineUsers", Object.values(onlineUsers));
   });
 });
 
-// =====================================
-// Keep-alive ping (optional)
-// =====================================
-const SELF_URL = "https://tunnelling-website.onrender.com/ping"; // Update sa imong deployed URL
+// ================================
+// FALLBACK (PWA ROUTING FIX)
+// ================================
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// ================================
+// KEEP ALIVE (OPTIONAL – RENDER)
+// ================================
+const SELF_URL = process.env.SELF_URL || "https://tunnelling-website.onrender.com/ping";
 
 cron.schedule("*/5 * * * *", async () => {
   try {
-    const res = await axios.get(SELF_URL, { timeout: 10000 });
-    console.log(`🔄 Self ping success (${res.status}) at ${new Date().toISOString()}`);
+    await axios.get(SELF_URL);
+    console.log("🔄 Self ping OK:", new Date().toISOString());
   } catch (err) {
-    console.log(`⚠️ Self ping failed: ${err.message} at ${new Date().toISOString()}`);
+    console.log("⚠️ Ping failed:", err.message);
   }
 });
 
-// =====================================
+// ================================
+// START SERVER
+// ================================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

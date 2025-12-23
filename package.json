@@ -1,7 +1,7 @@
 {
-  "name": "secure-group-chat",
+  "name": "balaba-family-chat",
   "version": "1.0.0",
-  "description": "Balaba Family Group Chat",
+  "description": "Balaba Family Group Chat PWA",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

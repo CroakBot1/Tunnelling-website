@@ -33,8 +33,9 @@ app.get("/ping", (req, res) => {
 // =====================================
 // In-memory storage (demo only)
 // =====================================
-const users = {};    // { username: hashedPassword }
-const messages = []; // chat messages
+const users = {};       // { username: hashedPassword }
+const messages = [];    // chat messages
+const onlineUsers = {}; // { socketId: username }
 
 // =====================================
 // LOGIN / VERIFY USER
@@ -57,7 +58,7 @@ app.post("/verify", async (req, res) => {
 });
 
 // =====================================
-// SOCKET.IO CHAT
+// SOCKET.IO CHAT + ONLINE USERS
 // =====================================
 io.on("connection", socket => {
   console.log("🟢 User connected:", socket.id);
@@ -65,18 +66,31 @@ io.on("connection", socket => {
   // Send previous messages
   socket.emit("loadMessages", messages);
 
+  // Send current online users
+  socket.emit("onlineUsers", Object.values(onlineUsers));
+
+  // When user logs in
+  socket.on("login", username => {
+    onlineUsers[socket.id] = username;
+    io.emit("onlineUsers", Object.values(onlineUsers));
+  });
+
+  // Chat message
   socket.on("chatMessage", msg => {
     messages.push(msg);
     io.emit("chatMessage", msg);
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
     console.log("🔴 User disconnected:", socket.id);
+    delete onlineUsers[socket.id];
+    io.emit("onlineUsers", Object.values(onlineUsers));
   });
 });
 
 // =====================================
-// Keep-alive ping (optional, ping your own server every 5 minutes)
+// Keep-alive ping (optional)
 // =====================================
 const SELF_URL = "https://tunnelling-website.onrender.com/ping"; // Update sa imong deployed URL
 

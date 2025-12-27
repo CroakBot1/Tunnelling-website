@@ -1,0 +1,15 @@
+{
+  "name": "fps-auto-lock-pwa",
+  "version": "1.0.0",
+  "description": "FPS Auto-Lock PWA - installable and fullscreen",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "build": "echo 'No build needed'"
+  },
+  "author": "YourName",
+  "license": "MIT",
+  "dependencies": {
+    "serve": "^14.2.0"
+  }
+}

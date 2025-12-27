@@ -5,27 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Installable PWA</title>
 
-<link rel="manifest" href="/manifest.json">
+<!-- Embedded Manifest -->
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTXkgSW5zdGFsbGFibGUgUFdBIiwic2hvcnRfbmFtZSI6IlBXQSIsInN0YXJ0X3VybCI6Ii8iLCJzY29wZSI6Ii8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwidGhlbWVfY29sb3IiOiIjMGQ2ZmVkIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxJTkdPUC1CU0UtVE9QSUNBTC1CQUNLLUJNIiwic2l6ZXMiOiI0OHg0OCIsInR5cGUiOiJpbWFnZS9wbmcifSx7InNyYyI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxJTkdPUC1CU0UtVE9QSUNBTC1CQUNLLUJNIiwic2l6ZXMiOiI3Mng3MiIsInR5cGUiOiJpbWFnZS9wbmcifSx7InNyYyI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxJTkdPUC1CU0UtVE9QSUNBTC1CQUNLLUJNIiwic2l6ZXMiOiI5Nng5NiIsInR5cGUiOiJpbWFnZS9wbmcifSx7InNyYyI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxJTkdPUC1CU0UtVE9QSUNBTC1CQUNLLUJNIiwic2l6ZXMiOiIxMjh4MTI4IiwidHlwZSI6ImltYWdlL3BuZyJ9LHsic3JjIjoiZGF0YTppbWFnZS9wbmc7YmFzZTY0LElOR09QLUJTRS1UT1BJQ0FMLUJBQ0stTUoiLCJzaXplcyI6IjE0NHgxNDQiLCJ0eXBlIjoiaW1hZ2UvcG5nIn0seyJzcmMiOiJkYXRhOmltYWdlL3BuZztiYXNlNjQsSU5HT1AtQlNFLVRPUklDQUwtQkFDSy1NKiIsInNpemVzIjoiMTUyeDE1MiIsInR5cGUiOiJpbWFnZS9wbmcifSx7InNyYyI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxJTkdPUC1CU0UtVE9QSUNBTC1CQUNLLUJNIiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3BuZyJ9LHsic3JjIjoiZGF0YTppbWFnZS9wbmc7YmFzZTY0LElOR09QLUJTRS1UT1BJQ0FMLUJBQ0stTU4iLCJzaXplcyI6IjM4NHgzODQiLCJ0eXBlIjoiaW1hZ2UvcG5nIn0seyJzcmMiOiJkYXRhOmltYWdlL3BuZztiYXNlNjQsSU5HT1AtQlNFLVRPUklDQUwtQkFDSy1NQiIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9wbmcifV19">
+
 <meta name="theme-color" content="#0d6efd">
 </head>
-
 <body>
 <main>
   <h1>Welcome to My PWA App!</h1>
-  <p>This is a Progressive Web App ready to install.</p>
-
+  <p>This is a fully self-contained Progressive Web App ready to install.</p>
   <button id="installBtn" hidden>Install App</button>
 </main>
 
 <script>
+// Service Worker registration
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js');
+  const swBlob = new Blob([`
+    const CACHE_NAME = "pwa-cache-singlefile-v1";
+    const ASSETS = ["/","/index.html"];
+    self.addEventListener("install", e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))); });
+    self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
+    self.addEventListener("fetch", e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+  `], { type: 'application/javascript' });
+
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob));
 }
 
+// Install prompt
 let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
   installBtn.hidden = false;

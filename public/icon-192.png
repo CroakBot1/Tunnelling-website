@@ -18,4 +18,3 @@ function createIcon(size, filename) {
 
 // Generate icons
 createIcon(192, 'icon-192.png');
-createIcon(512, 'icon-512.png');

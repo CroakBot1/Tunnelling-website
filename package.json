@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "npx serve ."
+    "start": "npx serve .",
+    "generate-icons": "node generate-all-icons.js"
+  },
+  "devDependencies": {
+    "canvas": "^2.12.0"
   }
 }

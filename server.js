@@ -1,25 +1,39 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 
 const app = express();
 
-// ===== CORS Configuration =====
+app.use(compression());
+
+// Secure CORS
 app.use(cors({
-  origin: '*',            // allow all origins (mobile/web PWA)
-  methods: ['GET','POST'],
-  allowedHeaders: ['Content-Type']
+  origin: ['http://localhost:3000'],
+  methods: ['GET'],
 }));
 
-// ===== Serve PWA Files =====
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve PWA
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1y',
+  immutable: true
+}));
 
-// Example API route
+// Health API
 app.get('/api/status', (req, res) => {
-  res.json({ status: 'online', message: 'FPS Auto-Lock PWA backend running' });
+  res.json({
+    status: 'online',
+    service: 'FPS Auto-Lock PWA',
+    time: new Date().toISOString()
+  });
 });
 
-// Start server
+// SPA fallback (important!)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 PWA server running on port ${PORT}`);
+});

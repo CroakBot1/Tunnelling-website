@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My PWA App</title>
+  <title>My PWA Screen Recorder</title>
 
-  <!-- Link manifest -->
+  <!-- Manifest -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#007BFF">
 </head>
@@ -18,8 +18,9 @@
     <p>This is a Progressive Web App ready to install.</p>
   </main>
 
-  <!-- Install button -->
+  <!-- Buttons -->
   <button id="installBtn" style="display:none; padding:10px 20px; font-size:16px;">Install App</button>
+  <button id="recordBtn" style="padding:10px 20px; font-size:16px;">Start Screen Recording</button>
 
   <script>
     // Register service worker
@@ -34,20 +35,57 @@
     // Handle Install prompt
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
-
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
       installBtn.style.display = 'block';
-
       installBtn.addEventListener('click', () => {
         installBtn.style.display = 'none';
         deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-          console.log('User choice:', choiceResult.outcome);
+        deferredPrompt.userChoice.then(choice => {
+          console.log('User choice:', choice.outcome);
           deferredPrompt = null;
         });
       });
+    });
+
+    // Screen Recording
+    const recordBtn = document.getElementById('recordBtn');
+    recordBtn.addEventListener('click', async () => {
+      try {
+        // Fullscreen
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        }
+
+        // Capture screen
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" },
+          audio: true
+        });
+
+        const recorder = new MediaRecorder(stream);
+        const chunks = [];
+
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'recording.webm';
+          a.click();
+        };
+
+        recorder.start();
+        console.log("Recording started...");
+
+        // Stop recording after 15s (adjustable)
+        setTimeout(() => recorder.stop(), 15000);
+
+      } catch (err) {
+        console.error("Error:", err);
+      }
     });
   </script>
 </body>

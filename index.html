@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My PWA Screen Recorder</title>
+  <title>Standalone PWA Screen Recorder</title>
 
-  <!-- Manifest -->
-  <link rel="manifest" href="/manifest.json">
+  <!-- Inline Manifest -->
+  <link rel="manifest" href='data:application/json,{"name":"My PWA","short_name":"PWAApp","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#007BFF","icons":[{"src":"data:image/png;base64,iVBORw0KGgoAAAANS...","sizes":"192x192","type":"image/png"},{"src":"data:image/png;base64,iVBORw0KGgoAAAANS...","sizes":"512x512","type":"image/png"}]}'>
   <meta name="theme-color" content="#007BFF">
 </head>
 <body>
@@ -15,78 +15,54 @@
   </header>
 
   <main>
-    <p>This is a Progressive Web App ready to install.</p>
+    <p>This is a Progressive Web App ready to install and record screen.</p>
   </main>
 
-  <!-- Buttons -->
-  <button id="installBtn" style="display:none; padding:10px 20px; font-size:16px;">Install App</button>
-  <button id="recordBtn" style="padding:10px 20px; font-size:16px;">Start Screen Recording</button>
+  <button id="installBtn" style="display:none; padding:10px 20px;">Install App</button>
+  <button id="recordBtn" style="padding:10px 20px;">Start Screen Recording</button>
 
   <script>
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-        .then(reg => console.log('Service Worker registered'))
-        .catch(err => console.log('SW failed', err));
-      });
-    }
+    // Inline Service Worker
+    const swCode = `
+      const CACHE_NAME = 'pwa-cache-v1';
+      const urlsToCache = ['/'];
+      self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache))));
+      self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
+    `;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob));
 
-    // Handle Install prompt
+    // Install prompt
     let deferredPrompt;
     const installBtn = document.getElementById('installBtn');
-    window.addEventListener('beforeinstallprompt', (e) => {
+    window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPrompt = e;
       installBtn.style.display = 'block';
-      installBtn.addEventListener('click', () => {
-        installBtn.style.display = 'none';
+      installBtn.onclick = () => {
         deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(choice => {
-          console.log('User choice:', choice.outcome);
-          deferredPrompt = null;
-        });
-      });
+        deferredPrompt.userChoice.then(c => deferredPrompt = null);
+        installBtn.style.display = 'none';
+      };
     });
 
-    // Screen Recording
-    const recordBtn = document.getElementById('recordBtn');
-    recordBtn.addEventListener('click', async () => {
+    // Screen Recorder
+    document.getElementById('recordBtn').onclick = async () => {
       try {
-        // Fullscreen
-        if (document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen();
-        }
-
-        // Capture screen
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: "always" },
-          audio: true
-        });
-
+        if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+        const stream = await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always"}, audio:true});
         const recorder = new MediaRecorder(stream);
         const chunks = [];
-
         recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: "video/webm" });
+          const blob = new Blob(chunks,{type:'video/webm'});
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'recording.webm';
-          a.click();
+          const a = document.createElement('a'); a.href=url; a.download='recording.webm'; a.click();
         };
-
         recorder.start();
-        console.log("Recording started...");
-
-        // Stop recording after 15s (adjustable)
-        setTimeout(() => recorder.stop(), 15000);
-
-      } catch (err) {
-        console.error("Error:", err);
-      }
-    });
+        setTimeout(()=>recorder.stop(),15000);
+      } catch(e){console.error(e);}
+    };
   </script>
 </body>
 </html>

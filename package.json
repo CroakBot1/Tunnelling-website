@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "echo \"No build required\"",
+    "build": "npm run clean && npm run copy-assets",
+    "clean": "rm -rf public",
+    "copy-assets": "mkdir -p public/icons && cp -r src/* public/",
     "generate-icons": "node generate-icons.js"
   },
   "author": "YourName",

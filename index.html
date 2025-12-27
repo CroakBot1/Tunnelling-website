@@ -6,24 +6,44 @@
   <title>My PWA App</title>
 
   <!-- Link manifest -->
-  <link rel="manifest" href="manifest.json">
-
-  <!-- Theme color -->
+  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#007BFF">
 </head>
 <body>
   <h1>Welcome to My PWA App!</h1>
   <p>This is a Progressive Web App ready to install.</p>
 
+  <!-- Install button -->
+  <button id="installBtn" style="display:none; padding:10px 20px; font-size:16px;">Install App</button>
+
   <script>
     // Register service worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js')
-        .then(reg => console.log('Service Worker registered:', reg))
-        .catch(err => console.log('Service Worker failed:', err));
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('SW failed', err));
       });
     }
+
+    // Handle Install prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+
+      installBtn.addEventListener('click', () => {
+        installBtn.style.display = 'none';
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          console.log('User choice:', choiceResult.outcome);
+          deferredPrompt = null;
+        });
+      });
+    });
   </script>
 </body>
 </html>

@@ -1,21 +1,21 @@
 {
-  "name": "balaba-family-chat",
+  "name": "fps-auto-lock",
   "version": "1.0.0",
-  "description": "Balaba Family Group Chat PWA",
-  "main": "server.js",
+  "description": "FPS Auto-Lock Detection Electron App",
+  "main": "main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "electron .",
+    "dist": "electron-builder"
   },
-  "engines": {
-    "node": ">=18"
+  "devDependencies": {
+    "electron": "^26.2.0",
+    "electron-builder": "^24.6.0"
   },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "bcrypt": "^5.1.1",
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "axios": "^1.6.0",
-    "node-cron": "^3.0.2"
+  "build": {
+    "appId": "com.fps.autolock",
+    "productName": "FPS Auto-Lock",
+    "win": {
+      "target": "nsis"
+    }
   }
 }

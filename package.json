@@ -1,11 +1,10 @@
 {
-  "name": "pwa-render-app",
+  "name": "minimal-black-pwa",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "npx serve ."
   },
-  "dependencies": {
-    "express": "^4.18.2"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }

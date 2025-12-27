@@ -1,18 +1,21 @@
 {
   "name": "FPS Auto-Lock PWA",
   "short_name": "AutoLock",
-  "start_url": "./index.html",
+  "description": "FPS utility PWA with enhanced aim tracking UI",
+  "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#000000",
-  "theme_color": "#0f0",
+  "theme_color": "#00ff00",
   "icons": [
     {
-      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAAHGlET1QAAAACAAAAAAAAAAcAAAAGAAAABwAAABwAAAAGAAABAQAAAAAAACxZTQAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNS0xMi0yN1QxMzo1MTo1OCswODowMIVkUAAAAABJRU5ErkJggg==",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAAHGlET1QAAAACAAAAAAAAAAcAAAAGAAAABwAAABwAAAAGAAABAQAAAAAAACxZTQAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNS0xMi0yN1QxMzo1MTo1OCswODowMIVkUAAAAABJRU5ErkJggg==",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

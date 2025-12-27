@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
-const app = express();
 
+const app = express();
 app.use(express.static(__dirname));
 
 app.get("*", (req, res) => {
@@ -9,4 +9,4 @@ app.get("*", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("PWA running on port", PORT));
+app.listen(PORT, () => console.log("Running on port", PORT));

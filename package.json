@@ -3,11 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "generate-icons": "node generate-all-icons.js"
+    "start": "node server.js"
   },
-  "devDependencies": {
-    "canvas": "^2.12.0",
+  "dependencies": {
     "express": "^4.18.2"
   }
 }

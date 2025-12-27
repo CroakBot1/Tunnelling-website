@@ -1,21 +1,13 @@
 {
-  "name": "fps-auto-lock",
+  "name": "capacitor-auto-lock-app",
   "version": "1.0.0",
-  "description": "FPS Auto-Lock Detection Electron App",
-  "main": "main.js",
+  "main": "index.js",
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder"
+    "start": "npx cap serve",
+    "build": "npx cap copy"
   },
-  "devDependencies": {
-    "electron": "^26.2.0",
-    "electron-builder": "^24.6.0"
-  },
-  "build": {
-    "appId": "com.fps.autolock",
-    "productName": "FPS Auto-Lock",
-    "win": {
-      "target": "nsis"
-    }
+  "dependencies": {
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/cli": "^5.0.0"
   }
 }

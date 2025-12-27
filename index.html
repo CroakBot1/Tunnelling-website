@@ -3,17 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Installable PWA</title>
+<title>Installable PWA</title>
 
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0d6efd">
 </head>
 
 <body>
-<h1>Welcome to My PWA App!</h1>
-<p>This is a Progressive Web App ready to install.</p>
+<main>
+  <h1>Welcome to My PWA App!</h1>
+  <p>This is a Progressive Web App ready to install.</p>
 
-<button id="installBtn" style="display:none;">Install App</button>
+  <button id="installBtn" hidden>Install App</button>
+</main>
 
 <script>
 if ('serviceWorker' in navigator) {
@@ -26,15 +28,19 @@ const installBtn = document.getElementById('installBtn');
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  installBtn.style.display = 'block';
+  installBtn.hidden = false;
 
-  installBtn.onclick = () => {
+  installBtn.addEventListener('click', () => {
     deferredPrompt.prompt();
     deferredPrompt.userChoice.finally(() => {
       deferredPrompt = null;
-      installBtn.style.display = 'none';
+      installBtn.hidden = true;
     });
-  };
+  });
+});
+
+window.addEventListener('appinstalled', () => {
+  alert('✅ App installed successfully!');
 });
 </script>
 </body>

@@ -3,66 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Standalone PWA Screen Recorder</title>
+<title>My Installable PWA</title>
 
-<!-- Inline Manifest -->
-<link rel="manifest" href='data:application/json,{"name":"My PWA App","short_name":"PWAApp","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#007BFF","icons":[{"src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABJklEQVRYR+2WQQ6CMBBFz6hKCOAWzAZHbhQm+EMrMkqEtHqO+5NFmV4V+H/uzhvJGR+MRz9PaCjM+WBHkH0AhS4AlTgE3LAF+DJF1gyAMi6MFxFHDGQO6NgQ+Rgw9nMN+JvAWfQBx4FlPApKAFtgAEbAJG4BW2BCLgH4wDkRHKgGQvMLNlgwzAnkM7AjlNgOLX4IwB5fA8Aqzvug7/ItgDc+AQ6kiuAH+gDvK0m6KakYIBsKgu/N6Rtq39X6DNfoTzF0Af/H+G32rmmRAAAAAElFTkSuQmCC","sizes":"192x192","type":"image/png"},{"src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABh0lEQVR4nO3bsU0DQRAF0A8tQQ6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA6gQ6gQ6kA=","sizes":"512x512","type":"image/png"}]}'>
-<meta name="theme-color" content="#007BFF">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d6efd">
+
 </head>
 <body>
-<header>
-<h1>Welcome to My PWA Screen Recorder</h1>
-</header>
+<h1>Welcome to My PWA App!</h1>
+<p>This is a Progressive Web App ready to install.</p>
 
-<main>
-<p>Standalone PWA with Install button and fullscreen screen recording.</p>
-</main>
-
-<button id="installBtn" style="display:none; padding:10px 20px;">Install App</button>
-<button id="recordBtn" style="padding:10px 20px;">Start Screen Recording</button>
+<button id="installBtn" style="display:none;">Install App</button>
 
 <script>
-// Inline Service Worker via Blob
-const swCode = `
-const CACHE_NAME='pwa-cache-v1';
-const urlsToCache=['/'];
-self.addEventListener('install', e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(urlsToCache))));
-self.addEventListener('fetch', e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
-`;
-const swBlob=new Blob([swCode],{type:'application/javascript'});
-navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
 
-// Install prompt
 let deferredPrompt;
-const installBtn=document.getElementById('installBtn');
-window.addEventListener('beforeinstallprompt',e=>{
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  deferredPrompt=e;
-  installBtn.style.display='block';
-  installBtn.onclick=()=>{
+  deferredPrompt = e;
+  installBtn.style.display = 'block';
+
+  installBtn.onclick = () => {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(c=>deferredPrompt=null);
-    installBtn.style.display='none';
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
   };
 });
-
-// Screen Recorder
-document.getElementById('recordBtn').onclick=async()=>{
-  try{
-    if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-    const stream=await navigator.mediaDevices.getDisplayMedia({video:{cursor:"always"}, audio:true});
-    const recorder=new MediaRecorder(stream);
-    const chunks=[];
-    recorder.ondataavailable=e=>chunks.push(e.data);
-    recorder.onstop=()=>{
-      const blob=new Blob(chunks,{type:'video/webm'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download='recording.webm'; a.click();
-    };
-    recorder.start();
-    setTimeout(()=>recorder.stop(),15000);
-  }catch(e){console.error(e);}
-};
 </script>
 </body>
 </html>

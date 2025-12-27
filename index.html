@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FPS Auto-Lock PWA</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00ff00">
+  <style>
+    body { background:#000; color:#0f0; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0;}
+    #installBtn { position:fixed; bottom:20px; right:20px; padding:14px 22px; font-size:16px; background:#00ff00; color:#000; border:none; border-radius:10px; z-index:9999; display:none; cursor:pointer;}
+  </style>
+</head>
+<body>
+
+<h1>FPS Auto-Lock PWA</h1>
+<p>Status: <span id="serverStatus">Checking...</span></p>
+
+<button id="installBtn">📲 Install App</button>
+
+<script>
+  // ------------------------------
+  // 1️⃣ SERVICE WORKER
+  // ------------------------------
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => console.log('✅ SW registered'))
+      .catch(err => console.error('SW error', err));
+  }
+
+  // ------------------------------
+  // 2️⃣ INSTALL PROMPT
+  // ------------------------------
+  let deferredPrompt;
+  const installBtn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'block';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+    console.log('PWA Installed');
+  });
+
+  // ------------------------------
+  // 3️⃣ SERVER CALL
+  // ------------------------------
+  const SERVER_URL = 'https://tunnelling-website.onrender.com';
+
+  async function checkServerStatus() {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/status`);
+      const data = await res.json();
+      document.getElementById('serverStatus').textContent = data.status || 'online';
+    } catch (err) {
+      console.error('Server fetch error', err);
+      document.getElementById('serverStatus').textContent = 'Offline / Error';
+    }
+  }
+
+  checkServerStatus();
+</script>
+
+</body>
+</html>

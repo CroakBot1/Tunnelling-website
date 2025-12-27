@@ -1,6 +1,6 @@
 {
-  "appId": "com.example.autolock",
-  "appName": "FPS Auto-Lock App",
-  "webDir": "www",
+  "appId": "com.example.fpsautolock",
+  "appName": "FPS Auto-Lock",
+  "webDir": "./",
   "bundledWebRuntime": false
 }

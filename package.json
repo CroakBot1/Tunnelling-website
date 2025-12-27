@@ -1,15 +1,13 @@
 {
-  "name": "fps-autolock",
+  "name": "fps-autolock-app",
   "version": "1.0.0",
-  "main": "index.html",
+  "description": "FPS Auto-Lock detection SPA",
   "scripts": {
-    "start": "npx cap serve",
-    "build": "echo 'Build not needed for web only app'"
+    "start": "serve .",
+    "build": "echo 'No build needed for static HTML'"
   },
   "dependencies": {
-    "@capacitor/core": "^6.0.0"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^6.0.0"
+    "serve": "^14.2.0"
   }
 }
+

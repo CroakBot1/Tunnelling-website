@@ -1,18 +1,12 @@
 {
-  "name": "fb-messenger-clone",
+  "name": "render-group-chat",
   "version": "1.0.0",
-  "description": "FB Messenger style real-time chat",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": "18.x"
-  },
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "socket.io": "^4.7.5",
-    "uuid": "^9.0.1"
+    "socket.io": "^4.7.2"
   }
 }

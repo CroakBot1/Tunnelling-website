@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Messenger</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+body{margin:0;font-family:sans-serif;background:#f0f2f5}
+#login{padding:20px}
+#app{display:flex;height:100vh}
+#inbox{width:30%;background:#fff;border-right:1px solid #ccc;overflow:auto}
+.user{padding:15px;cursor:pointer}
+.user:hover{background:#eee}
+#chat{flex:1;display:flex;flex-direction:column}
+#msgs{flex:1;overflow:auto;padding:10px}
+.me{background:#0084ff;color:#fff;margin:5px;padding:10px;border-radius:15px;align-self:flex-end}
+.them{background:#e4e6eb;margin:5px;padding:10px;border-radius:15px;align-self:flex-start}
+#typing{font-size:12px;color:#555;margin-left:10px}
+input,button{padding:10px;margin:5px}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <input id="u" placeholder="Username">
+  <input id="p" placeholder="Password">
+  <button onclick="register()">Create Account</button>
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="app" style="display:none">
+  <div id="inbox"></div>
+  <div id="chat">
+    <div id="msgs"></div>
+    <div id="typing"></div>
+    <div>
+      <input id="text" placeholder="Type a message" oninput="typingEvent()">
+      <button onclick="send()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://tunnelling-website.onrender.com";
+const socket = io(API);
+
+let me = {}, target = {}, convoId = null;
+
+function register(){
+ fetch(API+"/register",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({username:u.value,password:p.value})
+ });
+}
+
+function login(){
+ fetch(API+"/login",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({username:u.value,password:p.value})
+ }).then(r=>r.json()).then(d=>{
+  me=d;
+  socket.emit("join",me.id);
+  login.style.display="none";
+  app.style.display="flex";
+  loadUsers();
+ });
+}
+
+function loadUsers(){
+ fetch(API+"/users").then(r=>r.json()).then(data=>{
+  inbox.innerHTML=data
+   .filter(x=>x.id!==me.id)
+   .map(u=>`<div class="user" onclick="openChat('${u.id}')">${u.username}</div>`)
+   .join("");
+ });
+}
+
+function openChat(id){
+ target.id=id;
+ msgs.innerHTML="";
+ convoId=null;
+}
+
+function send(){
+ socket.emit("sendMessage",{from:me.id,to:target.id,text:text.value});
+ text.value="";
+}
+
+function typingEvent(){
+ socket.emit("typing",target.id);
+}
+
+socket.on("newMessage",m=>{
+ if(
+  (m.sender===me.id && m.receiver===target.id) ||
+  (m.sender===target.id && m.receiver===me.id)
+ ){
+  convoId=m.convoId;
+  show(m);
+  socket.emit("markSeen", convoId);
+ }
+});
+
+socket.on("typing",()=>typing.innerText="typing...");
+socket.on("messageSeen",()=>typing.innerText="Seen");
+
+function show(m){
+ const d=document.createElement("div");
+ d.className=m.sender===me.id?"me":"them";
+ d.textContent=m.text;
+ msgs.appendChild(d);
+ msgs.scrollTop=msgs.scrollHeight;
+}
+</script>
+
+</body>
+</html>
